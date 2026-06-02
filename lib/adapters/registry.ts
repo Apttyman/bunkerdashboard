@@ -5,6 +5,7 @@ import { stooq } from "./stooq";
 import { ecb } from "./ecb";
 import { alphavantage } from "./alphavantage";
 import { openweather } from "./openweather";
+import { openmeteo } from "./openmeteo";
 import { commercialAdapters } from "./commercial";
 import { scrapeConnectors, scrapingEnabled } from "./scraping";
 
@@ -19,7 +20,7 @@ export interface SourceStatus {
 }
 
 export function sourceStatuses(): SourceStatus[] {
-  const tier1 = [eia, fred, stooq, ecb, alphavantage, openweather].map((a) => ({
+  const tier1 = [eia, fred, stooq, ecb, openmeteo, alphavantage, openweather].map((a) => ({
     id: a.id,
     name: a.name,
     tier: 1 as const,

@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { resolveCrude } from "@/lib/adapters/resolve";
-import { eia } from "@/lib/adapters/eia";
-import { fred } from "@/lib/adapters/fred";
+import { resolveCrude, resolveProduct, resolveCrudeSeries } from "@/lib/adapters/resolve";
 import { ecb } from "@/lib/adapters/ecb";
 import { crackSpread, diff } from "@/lib/spreads";
 import { unavailable } from "@/lib/provenance";
@@ -11,20 +9,21 @@ export const dynamic = "force-dynamic";
 export const revalidate = 1800;
 
 export async function GET() {
-  // Crude (resolver picks best configured source). Series for sparkline (EIA/FRED).
+  // Crude + products resolved across sources: EIA/FRED official spot when keyed,
+  // else keyless Stooq futures — so cracks & sparklines are REAL with no API key.
   const [wti, brent, dieselGC, ulsdNYH, gasolineGC, eurusd] = await Promise.all([
     resolveCrude("WTI"),
     resolveCrude("BRENT"),
-    eia.configured() ? eia.latest("DIESEL_GC") : fred.latest("KEROSENE"),
-    eia.latest("ULSD_NYH"),
-    eia.latest("GASOLINE_GC"),
+    resolveProduct("DIESEL_GC", "HEATOIL"),
+    resolveProduct("ULSD_NYH", "HEATOIL"),
+    resolveProduct("GASOLINE_GC", "RBOB"),
     ecb.latest("EURUSD"),
   ]);
 
-  // Sparkline series — prefer EIA, fall back to FRED for WTI/Brent.
+  // Sparkline series — EIA/FRED official daily, else keyless Stooq daily history.
   const [wtiSeries, brentSeries] = await Promise.all([
-    eia.configured() ? eia.series("WTI", 60) : fred.series("WTI", 60),
-    eia.configured() ? eia.series("BRENT", 60) : fred.series("BRENT", 60),
+    resolveCrudeSeries("WTI", 60),
+    resolveCrudeSeries("BRENT", 60),
   ]);
 
   // Derived refining-economics spreads (real inputs, labelled derived).

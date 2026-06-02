@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { resolveCrude } from "@/lib/adapters/resolve";
-import { eia } from "@/lib/adapters/eia";
+import { resolveCrude, resolveProduct } from "@/lib/adapters/resolve";
 import { diff, crackSpread } from "@/lib/spreads";
 import type { Provenance } from "@/lib/provenance";
 
@@ -16,7 +15,7 @@ export async function GET() {
   const [wti, brent, dieselGC] = await Promise.all([
     resolveCrude("WTI"),
     resolveCrude("BRENT"),
-    eia.configured() ? eia.latest("DIESEL_GC") : eia.latest("WTI"),
+    resolveProduct("DIESEL_GC", "HEATOIL"),
   ]);
   const brentWti = diff("Brent–WTI", brent, wti, "$/bbl", "");
   const dieselCrack = crackSpread("Gulf Coast diesel", dieselGC, "WTI", wti, { productPerGallon: true, why: "" });
