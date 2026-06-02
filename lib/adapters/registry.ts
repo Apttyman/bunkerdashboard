@@ -7,7 +7,8 @@ import { alphavantage } from "./alphavantage";
 import { openweather } from "./openweather";
 import { openmeteo } from "./openmeteo";
 import { commercialAdapters } from "./commercial";
-import { scrapeConnectors, scrapingEnabled } from "./scraping";
+import { connectorStatuses } from "@/lib/scrape";
+import { scrapeConfigured } from "@/lib/scrape";
 
 export interface SourceStatus {
   id: string;
@@ -30,14 +31,15 @@ export function sourceStatuses(): SourceStatus[] {
     note: a.requiresKey ? (a.configured() ? "Live" : "Add API key to enable") : "Keyless — always live",
   }));
 
-  const tier3 = scrapeConnectors.map((c) => ({
+  const gated = scrapeConfigured();
+  const tier3 = connectorStatuses().map((c) => ({
     id: c.id,
     name: c.name,
     tier: 3 as const,
-    requiresKey: false,
-    configured: scrapingEnabled(),
-    enabled: c.enabled() && scrapingEnabled(),
-    note: "Disabled by default — " + c.legalGate.split(".")[0],
+    requiresKey: true,
+    configured: gated,
+    enabled: c.enabled && gated,
+    note: c.enabled ? (gated ? "Gated personal-use scraping live" : "Set SCRAPE_ACCESS_TOKEN to gate & enable") : "Disabled — " + c.legalNote.split(".")[0],
   }));
 
   const tier4 = Object.values(commercialAdapters).map((c) => ({

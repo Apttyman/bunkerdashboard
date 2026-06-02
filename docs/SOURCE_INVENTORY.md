@@ -35,12 +35,21 @@ cards** that explain what to read and why; we do **not** restate or cache their 
 | **Braemar** | 🟢 reports | Weekly tanker/dry market commentary | Free reports; not machine feeds |
 | **Splash247 / TradeWinds / Lloyd's List** | 🟢/🟠 | Shipping news, disruptions | News, link-out |
 
-## Tier 3 — Controlled scraping (scaffold only, disabled by default)
+## Tier 3 — Controlled scraping (implemented; gated personal-use)
 
-Adapter interface exists (`lib/adapters/scraping.ts`) with health-check, retry/backoff, and
-parser-validation hooks. **No scraper is enabled.** Each potential connector must clear a documented
-robots.txt + ToS gate before activation. Default state ships disabled and is surfaced as such in the
-source-health panel.
+Functional connectors live in `lib/scrape/` (engine + robots.txt evaluator + per-source parsers):
+Ship & Bunker, Bunker Index, Baltic Exchange, and Braemar reports. The layer is **off by default**
+and, when enabled, its data is **gated behind `SCRAPE_ACCESS_TOKEN`** so the public site never
+redistributes third-party data — it is **personal use only**.
+
+Safeguards: respects `robots.txt` (self-disables if disallowed), per-host rate limiting, caching,
+self-identifying User-Agent, strict numeric range validation, and **honest failure** (returns
+`parse: "failed"` rather than fabricating). Surfaced gated via `/live` and `/api/scrape`.
+
+> Legal posture: these sources' ToS restrict redistribution and **Baltic indices are licensed IP**.
+> Personal, non-redistributed use behind the token gate is the defensible mode; do not republish.
+> Parsers are heuristic — JS-rendered pages may report "parse failed" and need a tuning pass or a
+> headless-browser fetch.
 
 ## Tier 4 — Future commercial integrations (typed interface stubs)
 

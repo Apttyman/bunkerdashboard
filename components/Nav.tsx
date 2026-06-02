@@ -9,6 +9,7 @@ const NAV = [
   { href: "/refining", label: "Refining Economics", code: "REFIN" },
   { href: "/supply-chain", label: "Supply Chain", code: "SUPPLY" },
   { href: "/derivatives", label: "Derivatives", code: "DERIV" },
+  { href: "/live", label: "Live (Scraped)", code: "LIVE" },
   { href: "/watchlist", label: "Watchlist", code: "WATCH" },
   { href: "/learn", label: "Learning Mode", code: "LEARN" },
 ];
