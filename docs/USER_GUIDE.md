@@ -38,6 +38,13 @@ source required" state — never a fabricated number. Add keys to light up more.
 5. **Freight (FRGHT) / Derivatives (DERIV)** — glance at segment health and hedge venues. ~2 min.
 6. **Learning Mode (LEARN)** — when a term is unfamiliar, read its What/Why/How. Anytime.
 
+## Watchlist (WATCH)
+Save the symbols and morning-brief notes you track (Brent, WTI, distillate proxies,
+FX, cracks). Entries persist to Supabase, scoped to your browser/device. Live values
+are pulled from the same provenance-stamped feeds as the rest of the desk, so each
+saved row carries its source · timestamp · freshness. Requires the Supabase env vars
++ the migration (below); otherwise the page shows an honest "not configured" notice.
+
 ## Top bar telemetry
 - UTC clock · live Tier-1 source count · commercial feeds configured · **Audit trail** (Supabase snapshot count, "schema pending", or "disabled").
 

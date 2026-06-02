@@ -46,3 +46,31 @@ create policy "anon insert snapshots"
   on public.metric_snapshots for insert
   to anon, authenticated
   with check (true);
+
+-- Watchlist -------------------------------------------------------------------
+-- A trader's saved symbols + morning-brief notes. With no auth wired yet, rows
+-- are scoped by a client-generated device id (localStorage). For production,
+-- replace device scoping with Supabase Auth and `auth.uid()` RLS predicates.
+
+create table if not exists public.watchlist (
+  id          bigint generated always as identity primary key,
+  device      text        not null,
+  symbol      text        not null,
+  note        text        not null default '',
+  created_at  timestamptz not null default now(),
+  unique (device, symbol)
+);
+
+create index if not exists watchlist_device_idx on public.watchlist (device);
+
+alter table public.watchlist enable row level security;
+
+drop policy if exists "anon read watchlist"   on public.watchlist;
+drop policy if exists "anon write watchlist"  on public.watchlist;
+drop policy if exists "anon update watchlist" on public.watchlist;
+drop policy if exists "anon delete watchlist" on public.watchlist;
+
+create policy "anon read watchlist"   on public.watchlist for select using (true);
+create policy "anon write watchlist"  on public.watchlist for insert with check (true);
+create policy "anon update watchlist" on public.watchlist for update using (true) with check (true);
+create policy "anon delete watchlist" on public.watchlist for delete using (true);

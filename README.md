@@ -9,8 +9,8 @@ developing bunker fuel trader who opens one dashboard every morning.
 
 ## What it covers
 Morning Brief · Marine Fuel Markets · Freight Markets · Refining Economics ·
-Supply Chain & Chokepoints · Derivatives & Hedging · Learning Mode (14 concepts,
-each What / Why / How).
+Supply Chain & Chokepoints · Derivatives & Hedging · Watchlist (saved symbols +
+notes, Supabase-backed) · Learning Mode (14 concepts, each What / Why / How).
 
 ## Stack
 Next.js 15 (App Router) · React 19 · TypeScript · Tailwind v4 · SWR · Supabase

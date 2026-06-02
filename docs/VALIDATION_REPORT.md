@@ -45,6 +45,23 @@ Executed `npm start` and probed endpoints:
 - `/api/markets` records real (available) snapshots best-effort; never blocks the request.
 - Connectivity verified against the supplied project (`reachable:true`). **Action required:** run `supabase/migrations/0001_metric_snapshots.sql` in the project SQL editor to create `metric_snapshots`; the top-bar "Audit trail" indicator then shows the live snapshot count.
 
+## 6b. Watchlist (Supabase)
+- `watchlist(device, symbol, note)` table added to the migration with permissive
+  anon RLS (device-scoped; documented to swap for Supabase Auth in production).
+- `/api/watchlist` GET/POST/DELETE verified at runtime:
+  - `GET` → `{configured:true, items:[]}` (Supabase reachable, list empty)
+  - `POST` valid symbol (pre-migration) → `{ok:false}` (honest — no fabricated success)
+  - `POST` unknown symbol → HTTP 400 (input validation)
+  - `/watchlist` page → HTTP 200
+- Activates fully once the migration is run; values render with full provenance.
+
+## 6c. Target project decision
+- The supplied publishable key + URL (`zcjzuabqxjpglazzjqdo.supabase.co`) is wired via
+  env (`NEXT_PUBLIC_SUPABASE_*`). This session's MCP only exposes an unrelated project
+  ("Culinario App"), so DDL is delivered as `supabase/migrations/0001_*.sql` for the
+  owner to run in the correct project's SQL editor — nothing was written to the
+  unrelated database.
+
 ## 7. Known limitations (by design)
 - Absolute VLSFO/HSFO/MGO bunker prices, Worldscale/TCE freight, FFA settlements, and AIS/flow analytics are commercial — gated honestly, with Tier-4 adapters ready and source cards linking to authoritative providers.
 - This build container's egress is restricted, so live Tier-1 values are unavailable *here*; they resolve in a deployment with normal outbound access. Supabase egress succeeded, confirming the integration path.
