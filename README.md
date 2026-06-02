@@ -45,7 +45,12 @@ Persists every provenance-stamped metric as an append-only record.
 - `docs/API_INVENTORY.md` — endpoint-level API reference
 - `docs/USER_GUIDE.md` — the 15-minute morning routine
 - `docs/COMMERCIAL_INTEGRATION.md` — connecting paid feeds
+- `docs/DEPLOYMENT.md` — deploy to Vercel + custom domain runbook
 - `docs/VALIDATION_REPORT.md` — build, smoke test & governance conformance
+
+## Deploy
+Vercel (zero-config Next.js). Import the repo, set env vars, add your domain — see
+`docs/DEPLOYMENT.md`. Live at `bunkerdashboard.cuscoventurescorp.org`.
 
 ## Data integrity
 Accuracy over completeness. No fabricated freight rates, bunker prices, crack
