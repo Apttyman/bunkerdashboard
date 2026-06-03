@@ -1,79 +1,77 @@
 // Ship & Bunker connector — VLSFO / HSFO (IFO380) / MGO by port.
-// Heuristic text parser with strict range validation. Fails honestly if the page
-// is JS-rendered or the layout changes (returns parse:"failed", never fake data).
-import { getPageHtml, robotsState, htmlToText, scrapingEnabled } from "../engine";
+// Strategy (no headless browser needed): the /prices index is server-rendered for
+// VLSFO and links to each port's own page; those per-port pages are fully
+// server-rendered with ALL grades. So we read VLSFO + the port links from
+// /prices, then fetch each port page statically and parse all three grades.
+// Ports are canonicalised (Ship & Bunker lists Panama as Balboa/Cristóbal) so
+// they line up with the dashboard's port list. Fails honestly; never fabricates.
+import { politeFetch, robotsState, htmlToText, scrapingEnabled } from "../engine";
 import type { ScrapeConnector, ScrapeResult, ScrapeRow } from "../types";
 
 const URL_ = "https://shipandbunker.com/prices";
-const PORTS = [
-  "Singapore", "Rotterdam", "Fujairah", "Houston", "Gibraltar", "Zhoushan",
-  "Panama", "Hong Kong", "Busan", "Los Angeles", "Antwerp", "Durban",
+const ORIGIN = "https://shipandbunker.com";
+
+// canonical name (matches dashboard ports) → source aliases on Ship & Bunker.
+const PORT_SPECS: { name: string; aliases: string[] }[] = [
+  { name: "Singapore", aliases: ["Singapore"] },
+  { name: "Rotterdam", aliases: ["Rotterdam"] },
+  { name: "Fujairah", aliases: ["Fujairah"] },
+  { name: "Houston", aliases: ["Houston"] },
+  { name: "Panama", aliases: ["Balboa", "Cristobal", "Cristóbal", "Panama"] },
+  { name: "Gibraltar", aliases: ["Gibraltar"] },
+  { name: "Zhoushan", aliases: ["Zhoushan"] },
+  { name: "Hong Kong", aliases: ["Hong Kong"] },
+  { name: "Busan", aliases: ["Busan"] },
+  { name: "Antwerp", aliases: ["Antwerp"] },
+  { name: "Los Angeles", aliases: ["Los Angeles"] },
 ];
 
-// Sane bunker ranges ($/mt) to reject mis-parsed numbers, indexed [VLSFO,HSFO,MGO].
+// Sane bunker ranges ($/mt) to reject mis-parsed numbers: [VLSFO, HSFO, MGO].
 const RANGES: [number, number][] = [[200, 1400], [150, 1200], [300, 2000]];
 
-const nums = (line: string) => (line.match(/\d[\d,]*\.?\d*/g) ?? []).map((s) => Number(s.replace(/,/g, "")));
+const allNums = (s: string) => (s.match(/\d[\d,]*\.?\d*/g) ?? []).map((n) => Number(n.replace(/,/g, "")));
 
-// Combined-row layout (rendered table): port row carries all three grades.
-function parseFlat(lines: string[]): Map<string, (number | null)[]> {
-  const out = new Map<string, (number | null)[]>();
-  for (const port of PORTS) {
-    const idx = lines.findIndex((l) => l.toLowerCase().includes(port.toLowerCase()));
+// First in-range number following a grade label (port detail page layout).
+function priceAfter(text: string, labelRe: RegExp, lo: number, hi: number): number | null {
+  const m = labelRe.exec(text);
+  if (!m) return null;
+  return allNums(text.slice(m.index, m.index + 90)).find((n) => n >= lo && n <= hi) ?? null;
+}
+
+function parsePortPage(text: string): (number | null)[] {
+  return [
+    priceAfter(text, /\bvlsfo\b/i, RANGES[0][0], RANGES[0][1]),
+    priceAfter(text, /\b(ifo\s?380|hsfo)\b/i, RANGES[1][0], RANGES[1][1]),
+    priceAfter(text, /\bmgo\b/i, RANGES[2][0], RANGES[2][1]),
+  ];
+}
+
+// VLSFO from the /prices index (one number per port row), keyed by canonical name.
+function parseIndexVlsfo(text: string): Map<string, number> {
+  const out = new Map<string, number>();
+  const lines = text.split("\n");
+  for (const spec of PORT_SPECS) {
+    const idx = lines.findIndex((l) => spec.aliases.some((a) => l.toLowerCase().includes(a.toLowerCase())));
     if (idx === -1) continue;
-    const ns = nums(lines.slice(idx, idx + 2).join(" "));
-    const vlsfo = ns.find((n) => n >= RANGES[0][0] && n <= RANGES[0][1]) ?? null;
-    const hsfo = ns.find((n) => n >= RANGES[1][0] && n <= RANGES[1][1] && n !== vlsfo) ?? null;
-    const mgo = ns.find((n) => n >= RANGES[2][0] && n <= RANGES[2][1] && n !== vlsfo && n !== hsfo) ?? null;
-    if (vlsfo != null || hsfo != null || mgo != null) out.set(port, [vlsfo, hsfo, mgo]);
+    const n = allNums(lines.slice(idx, idx + 2).join(" ")).find((x) => x >= RANGES[0][0] && x <= RANGES[0][1]);
+    if (n != null) out.set(spec.name, n);
   }
   return out;
 }
 
-// Separate per-grade tables (static layout): three sections, each a grade.
-function parseSections(lines: string[]): Map<string, (number | null)[]> {
-  const markers = [
-    { g: 0, re: /\bvlsfo\b/i },
-    { g: 1, re: /\b(ifo\s?380|hsfo)\b/i },
-    { g: 2, re: /\bmgo\b/i },
-  ]
-    .map((m) => ({ g: m.g, at: lines.findIndex((l) => m.re.test(l)) }))
-    .filter((m) => m.at >= 0)
-    .sort((a, b) => a.at - b.at);
-
-  const out = new Map<string, (number | null)[]>();
-  for (let i = 0; i < markers.length; i++) {
-    const { g, at } = markers[i];
-    const end = markers[i + 1]?.at ?? lines.length;
-    const [lo, hi] = RANGES[g];
-    for (const port of PORTS) {
-      const pl = lines.slice(at, end).find((l) => l.toLowerCase().includes(port.toLowerCase()));
-      if (!pl) continue;
-      const num = nums(pl).find((n) => n >= lo && n <= hi);
-      if (num == null) continue;
-      const arr = out.get(port) ?? [null, null, null];
-      arr[g] = num;
-      out.set(port, arr);
+// Discover each port's detail-page URL from the index links (keyed by canonical name).
+function portLinks(rawHtml: string): Map<string, string> {
+  const out = new Map<string, string>();
+  const re = /<a[^>]+href="(\/prices\/[^"#]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(rawHtml))) {
+    const href = m[1];
+    const text = m[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+    for (const spec of PORT_SPECS) {
+      if (!out.has(spec.name) && spec.aliases.some((a) => text === a.toLowerCase())) out.set(spec.name, ORIGIN + href);
     }
   }
   return out;
-}
-
-// Merge both strategies — section values win, flat fills any gaps.
-function parse(text: string): ScrapeRow[] {
-  const lines = text.split("\n");
-  const flat = parseFlat(lines);
-  const sect = parseSections(lines);
-  const ports = new Set<string>([...flat.keys(), ...sect.keys()]);
-  const rows: ScrapeRow[] = [];
-  for (const port of PORTS) {
-    if (!ports.has(port)) continue;
-    const f = flat.get(port) ?? [null, null, null];
-    const s = sect.get(port) ?? [null, null, null];
-    const values = [0, 1, 2].map((i) => s[i] ?? f[i]);
-    if (values.some((v) => v != null)) rows.push({ key: port, values });
-  }
-  return rows;
 }
 
 export const shipandbunker: ScrapeConnector = {
@@ -92,15 +90,41 @@ export const shipandbunker: ScrapeConnector = {
     const robots = await robotsState(URL_);
     if (robots !== "allowed") return { ...base, robots, reason: `robots.txt: ${robots} — not scraping` };
     try {
-      const { html, mode, renderError } = await getPageHtml(URL_, true, 1800);
-      const rows = parse(htmlToText(html));
-      const diag = renderError ? ` [render→static: ${renderError}]` : "";
+      const indexHtml = await politeFetch(URL_, 1800);
+      const vlsfoIndex = parseIndexVlsfo(htmlToText(indexHtml));
+      const links = portLinks(indexHtml);
+
+      // Fetch each discovered port page (static, server-rendered, all grades).
+      const perPort = await Promise.all(
+        [...links].map(async ([port, url]) => {
+          try {
+            return [port, parsePortPage(htmlToText(await politeFetch(url, 1800)))] as const;
+          } catch {
+            return [port, null] as const;
+          }
+        }),
+      );
+
+      // Merge: per-port page grades win; index VLSFO fills any gap.
+      const map = new Map<string, (number | null)[]>();
+      for (const [port, vals] of perPort) {
+        if (vals && vals.some((v) => v != null)) map.set(port, vals);
+      }
+      for (const [port, v] of vlsfoIndex) {
+        const ex = map.get(port) ?? [null, null, null];
+        if (ex[0] == null) ex[0] = v;
+        map.set(port, ex);
+      }
+
+      const rows: ScrapeRow[] = PORT_SPECS.filter((s) => map.has(s.name)).map((s) => ({ key: s.name, values: map.get(s.name)! }));
       if (rows.length === 0)
-        return { ...base, robots, parse: "failed", reason: `No parseable prices (${mode} fetch)${diag}` };
+        return { ...base, robots, parse: "failed", reason: "No parseable prices (layout may have changed)" };
+
+      const gradesFound = rows.some((r) => r.values[1] != null || r.values[2] != null);
       return {
         ...base, robots, parse: "ok", available: true, asOf: new Date().toISOString(),
         table: { columns: ["VLSFO", "HSFO", "MGO"], unit: "$/mt", rows },
-        note: `SCRAPED (${mode}) — personal use only. Verify against shipandbunker.com.${diag}`,
+        note: `SCRAPED (static, per-port) — personal use only. Verify against shipandbunker.com.${gradesFound ? "" : " HSFO/MGO not found on port pages."}`,
       };
     } catch (e) {
       return { ...base, robots, parse: "failed", reason: `Fetch error: ${(e as Error).message}` };
