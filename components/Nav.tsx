@@ -11,6 +11,7 @@ const NAV = [
   { href: "/derivatives", label: "Derivatives", code: "DERIV" },
   { href: "/live", label: "Live (Scraped)", code: "LIVE" },
   { href: "/watchlist", label: "Watchlist", code: "WATCH" },
+  { href: "/sources", label: "Data Sources", code: "SRC" },
   { href: "/learn", label: "Learning Mode", code: "LEARN" },
 ];
 

@@ -1,6 +1,7 @@
 "use client";
 import useSWR from "swr";
 import { Metric, Card, SectionHeader, PageHeader, IntelCardView, LearnSnippet } from "@/components/ui";
+import { ScrapedBunkers } from "@/components/ScrapedBunkers";
 import { BUNKER_PORTS, FUEL_PRODUCTS } from "@/lib/content/markets";
 import { BUNKER_INTEL } from "@/lib/content/intel";
 import { LEARN_TOPICS } from "@/lib/content/learn";
@@ -23,15 +24,21 @@ export default function Fuels() {
         lead="VLSFO / HSFO / MGO across Singapore, Rotterdam, Fujairah, Houston, Panama, Gibraltar and Zhoushan. Absolute bunker assessments are commercial — shown as source-intelligence cards. Free distillate proxies (clearly labelled as proxies) give directional read."
       />
       <div className="space-y-5 p-5">
-        {/* Honest data-availability banner */}
-        <Card className="border-l-2 border-l-[var(--color-warn)] p-3">
-          <p className="text-[12px] leading-snug text-[var(--color-ink-dim)]">
-            <span className="font-semibold text-[var(--color-warn)]">Data integrity note:</span> real-time VLSFO/HSFO/MGO
-            bunker prices by port are licensed commercial data (Platts, Argus, Ship & Bunker). This platform does not
-            fabricate or scrape them. Below: (1) the live distillate/crude proxies we <em>can</em> source for free,
-            clearly labelled as proxies, and (2) curated links to the authoritative bunker price sources.
-          </p>
-        </Card>
+        {/* Live scraped bunker prices (personal use; whole app is access-gated) */}
+        <section>
+          <SectionHeader title="Live bunker prices by port" code="SCRAPED · PERSONAL" desc="VLSFO / HSFO / MGO scraped from Ship & Bunker for your private use. Verify against the source before trading. Not for redistribution." />
+          <ScrapedBunkers />
+        </section>
+
+        {/* External desks & data sources — one click to the authoritative pages */}
+        <section>
+          <SectionHeader title="External desks & data sources" code="LINKS" desc="The authoritative marine-fuel price & market pages. Open in a new tab." />
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            {BUNKER_INTEL.map((c) => (
+              <IntelCardView key={c.id} c={c} />
+            ))}
+          </div>
+        </section>
 
         {/* Free proxies */}
         <section>
@@ -81,16 +88,6 @@ export default function Fuels() {
           <p className="mt-1.5 text-[10px] text-[var(--color-ink-faint)]">
             {BUNKER_PORTS.length} ports × {FUEL_PRODUCTS.length} grades · connect Argus/Platts (Tier-4) or license Ship & Bunker data to populate.
           </p>
-        </section>
-
-        {/* Authoritative bunker sources */}
-        <section>
-          <SectionHeader title="Authoritative bunker price sources" code="TIER 2" />
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            {BUNKER_INTEL.map((c) => (
-              <IntelCardView key={c.id} c={c} />
-            ))}
-          </div>
         </section>
 
         {/* Product explainers */}

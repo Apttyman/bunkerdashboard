@@ -129,7 +129,13 @@ export async function getPageHtml(
       if (html && html.length > 500) return { html, mode: "render" };
       renderError = `render returned ${html?.length ?? 0} bytes`;
     } catch (e) {
-      renderError = (e as Error).message;
+      // Playwright dumps the whole browser log; surface only the meaningful line.
+      const raw = (e as Error).message;
+      const key =
+        raw.match(/error while loading shared libraries:[^\n]*/)?.[0] ??
+        raw.match(/cannot open shared object[^\n]*/)?.[0] ??
+        raw.split("\n")[0];
+      renderError = key.slice(0, 180);
       console.warn(`[scrape] render failed for ${url}, falling back to static:`, renderError);
     }
   }

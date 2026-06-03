@@ -10,23 +10,68 @@ const PORTS = [
   "Panama", "Hong Kong", "Busan", "Los Angeles", "Antwerp", "Durban",
 ];
 
-// Sane bunker ranges ($/mt) to reject mis-parsed numbers.
-const R = { VLSFO: [200, 1400], HSFO: [150, 1200], MGO: [300, 2000] } as const;
+// Sane bunker ranges ($/mt) to reject mis-parsed numbers, indexed [VLSFO,HSFO,MGO].
+const RANGES: [number, number][] = [[200, 1400], [150, 1200], [300, 2000]];
 
+const nums = (line: string) => (line.match(/\d[\d,]*\.?\d*/g) ?? []).map((s) => Number(s.replace(/,/g, "")));
+
+// Combined-row layout (rendered table): port row carries all three grades.
+function parseFlat(lines: string[]): Map<string, (number | null)[]> {
+  const out = new Map<string, (number | null)[]>();
+  for (const port of PORTS) {
+    const idx = lines.findIndex((l) => l.toLowerCase().includes(port.toLowerCase()));
+    if (idx === -1) continue;
+    const ns = nums(lines.slice(idx, idx + 2).join(" "));
+    const vlsfo = ns.find((n) => n >= RANGES[0][0] && n <= RANGES[0][1]) ?? null;
+    const hsfo = ns.find((n) => n >= RANGES[1][0] && n <= RANGES[1][1] && n !== vlsfo) ?? null;
+    const mgo = ns.find((n) => n >= RANGES[2][0] && n <= RANGES[2][1] && n !== vlsfo && n !== hsfo) ?? null;
+    if (vlsfo != null || hsfo != null || mgo != null) out.set(port, [vlsfo, hsfo, mgo]);
+  }
+  return out;
+}
+
+// Separate per-grade tables (static layout): three sections, each a grade.
+function parseSections(lines: string[]): Map<string, (number | null)[]> {
+  const markers = [
+    { g: 0, re: /\bvlsfo\b/i },
+    { g: 1, re: /\b(ifo\s?380|hsfo)\b/i },
+    { g: 2, re: /\bmgo\b/i },
+  ]
+    .map((m) => ({ g: m.g, at: lines.findIndex((l) => m.re.test(l)) }))
+    .filter((m) => m.at >= 0)
+    .sort((a, b) => a.at - b.at);
+
+  const out = new Map<string, (number | null)[]>();
+  for (let i = 0; i < markers.length; i++) {
+    const { g, at } = markers[i];
+    const end = markers[i + 1]?.at ?? lines.length;
+    const [lo, hi] = RANGES[g];
+    for (const port of PORTS) {
+      const pl = lines.slice(at, end).find((l) => l.toLowerCase().includes(port.toLowerCase()));
+      if (!pl) continue;
+      const num = nums(pl).find((n) => n >= lo && n <= hi);
+      if (num == null) continue;
+      const arr = out.get(port) ?? [null, null, null];
+      arr[g] = num;
+      out.set(port, arr);
+    }
+  }
+  return out;
+}
+
+// Merge both strategies — section values win, flat fills any gaps.
 function parse(text: string): ScrapeRow[] {
   const lines = text.split("\n");
+  const flat = parseFlat(lines);
+  const sect = parseSections(lines);
+  const ports = new Set<string>([...flat.keys(), ...sect.keys()]);
   const rows: ScrapeRow[] = [];
   for (const port of PORTS) {
-    const idx = lines.findIndex((l) => l.toLowerCase().startsWith(port.toLowerCase()));
-    if (idx === -1) continue;
-    // Gather numbers from the port line and the next couple of lines.
-    const blob = lines.slice(idx, idx + 3).join(" ");
-    const nums = (blob.match(/\d[\d,]*\.?\d*/g) ?? []).map((s) => Number(s.replace(/,/g, "")));
-    const vlsfo = nums.find((n) => n >= R.VLSFO[0] && n <= R.VLSFO[1]) ?? null;
-    const hsfo = nums.find((n) => n >= R.HSFO[0] && n <= R.HSFO[1] && n !== vlsfo) ?? null;
-    const mgo = nums.find((n) => n >= R.MGO[0] && n <= R.MGO[1] && n !== vlsfo && n !== hsfo) ?? null;
-    if (vlsfo == null && hsfo == null && mgo == null) continue;
-    rows.push({ key: port, values: [vlsfo, hsfo, mgo] });
+    if (!ports.has(port)) continue;
+    const f = flat.get(port) ?? [null, null, null];
+    const s = sect.get(port) ?? [null, null, null];
+    const values = [0, 1, 2].map((i) => s[i] ?? f[i]);
+    if (values.some((v) => v != null)) rows.push({ key: port, values });
   }
   return rows;
 }

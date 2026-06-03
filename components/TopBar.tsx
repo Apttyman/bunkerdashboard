@@ -11,9 +11,8 @@ export function TopBar() {
 
   useEffect(() => {
     const tick = () =>
-      setClock(
-        new Date().toLocaleTimeString("en-GB", { hour12: false, timeZone: "UTC" }) + " UTC",
-      );
+      // Local time in the viewer's own timezone (e.g. EST/EDT), with tz label.
+      setClock(new Date().toLocaleTimeString([], { hour12: false, timeZoneName: "short" }));
     tick();
     const i = setInterval(tick, 1000);
     return () => clearInterval(i);

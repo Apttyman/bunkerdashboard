@@ -4,7 +4,7 @@
   "private": true,
   "description": "Institutional-grade marine fuels & tanker-market intelligence platform",
   "engines": {
-    "node": ">=20.0.0"
+    "node": "22.x"
   },
   "scripts": {
     "dev": "next dev",
