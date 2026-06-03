@@ -21,7 +21,7 @@ export async function politeFetch(url: string, cacheSeconds = 1800): Promise<str
   const host = new URL(url).host;
   await rateLimit(host);
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 12_000);
+  const timer = setTimeout(() => ctrl.abort(), 20_000);
   try {
     const res = await fetch(url, {
       signal: ctrl.signal,
@@ -109,27 +109,31 @@ export function scrapingEnabled(): boolean {
 }
 
 /** Fetch page HTML. When `useRender` is set, try a headless browser first (for
- *  JS-rendered pages), then fall back to a plain static fetch. Returns the HTML
- *  and which mode produced it. Never throws on render failure alone. */
+ *  JS-rendered pages), then fall back to a plain static fetch. Returns the HTML,
+ *  which mode produced it, and any render error (for diagnostics). Never throws
+ *  on render failure alone. */
 export async function getPageHtml(
   url: string,
   useRender: boolean,
   cacheSeconds = 1800,
-): Promise<{ html: string; mode: "render" | "static" }> {
+): Promise<{ html: string; mode: "render" | "static"; renderError?: string }> {
+  let renderError: string | undefined;
   if (useRender) {
     try {
-      const { renderPage, renderAvailable } = await import("./render");
-      if (renderAvailable()) {
-        const host = new URL(url).host;
-        await rateLimit(host);
-        const html = await renderPage(url, { settleMs: 1500 });
-        if (html && html.length > 500) return { html, mode: "render" };
-      }
+      // NB: import() works in Next's ESM runtime (unlike require.resolve). Always
+      // attempt the render; if Chromium can't launch we record why and fall back.
+      const { renderPage } = await import("./render");
+      const host = new URL(url).host;
+      await rateLimit(host);
+      const html = await renderPage(url, { settleMs: 1500 });
+      if (html && html.length > 500) return { html, mode: "render" };
+      renderError = `render returned ${html?.length ?? 0} bytes`;
     } catch (e) {
-      console.warn(`[scrape] render failed for ${url}, falling back to static:`, (e as Error).message);
+      renderError = (e as Error).message;
+      console.warn(`[scrape] render failed for ${url}, falling back to static:`, renderError);
     }
   }
-  return { html: await politeFetch(url, cacheSeconds), mode: "static" };
+  return { html: await politeFetch(url, cacheSeconds), mode: "static", renderError };
 }
 
 /** Collapse HTML to newline-separated visible text (rows preserved), scripts and

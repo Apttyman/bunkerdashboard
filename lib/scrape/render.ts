@@ -3,8 +3,6 @@
 // they only load when actually rendering. Any failure throws and the caller falls
 // back to a plain static fetch — the app never breaks if the browser can't launch.
 
-let warned = false;
-
 export async function renderPage(
   url: string,
   opts: { waitUntil?: "load" | "domcontentloaded" | "networkidle"; settleMs?: number; timeoutMs?: number } = {},
@@ -33,17 +31,5 @@ export async function renderPage(
     return await page.content();
   } finally {
     await browser.close().catch(() => {});
-  }
-}
-
-/** True when a headless browser is plausibly available (deps installed). */
-export function renderAvailable(): boolean {
-  try {
-    require.resolve("@sparticuz/chromium");
-    require.resolve("playwright-core");
-    return true;
-  } catch {
-    if (!warned) { console.warn("[scrape] headless deps not resolvable; static fetch only"); warned = true; }
-    return false;
   }
 }

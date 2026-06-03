@@ -38,9 +38,10 @@ export const bunkerindex: ScrapeConnector = {
     const robots = await robotsState(URL_);
     if (robots !== "allowed") return { ...base, robots, reason: `robots.txt: ${robots} — not scraping` };
     try {
-      const { html, mode } = await getPageHtml(URL_, true, 1800);
+      const { html, mode, renderError } = await getPageHtml(URL_, true, 1800);
       const rows = parse(htmlToText(html));
-      if (rows.length === 0) return { ...base, robots, parse: "failed", reason: `No parseable values (${mode} fetch; parser may need tuning)` };
+      const diag = renderError ? ` [render→static: ${renderError}]` : "";
+      if (rows.length === 0) return { ...base, robots, parse: "failed", reason: `No parseable values (${mode} fetch)${diag}` };
       return {
         ...base, robots, parse: "ok", available: true, asOf: new Date().toISOString(),
         table: { columns: ["Value"], unit: "index / $/mt", rows },

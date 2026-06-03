@@ -47,14 +47,15 @@ export const shipandbunker: ScrapeConnector = {
     const robots = await robotsState(URL_);
     if (robots !== "allowed") return { ...base, robots, reason: `robots.txt: ${robots} — not scraping` };
     try {
-      const { html, mode } = await getPageHtml(URL_, true, 1800);
+      const { html, mode, renderError } = await getPageHtml(URL_, true, 1800);
       const rows = parse(htmlToText(html));
+      const diag = renderError ? ` [render→static: ${renderError}]` : "";
       if (rows.length === 0)
-        return { ...base, robots, parse: "failed", reason: `No parseable prices (${mode} fetch; parser may need tuning)` };
+        return { ...base, robots, parse: "failed", reason: `No parseable prices (${mode} fetch)${diag}` };
       return {
         ...base, robots, parse: "ok", available: true, asOf: new Date().toISOString(),
         table: { columns: ["VLSFO", "HSFO", "MGO"], unit: "$/mt", rows },
-        note: `SCRAPED (${mode}) — personal use only. Verify against shipandbunker.com.`,
+        note: `SCRAPED (${mode}) — personal use only. Verify against shipandbunker.com.${diag}`,
       };
     } catch (e) {
       return { ...base, robots, parse: "failed", reason: `Fetch error: ${(e as Error).message}` };
