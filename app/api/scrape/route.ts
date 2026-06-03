@@ -24,6 +24,10 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Scraping disabled (set SCRAPING_ENABLED=true)" }, { status: 403 });
 
   const source = url.searchParams.get("source");
+  if (source === "shipandbunker" && url.searchParams.get("debug") === "1") {
+    const { debugShipAndBunker } = await import("@/lib/scrape/connectors/shipandbunker");
+    return NextResponse.json(await debugShipAndBunker());
+  }
   if (source) {
     const result = await runScrape(source);
     if (!result) return NextResponse.json({ error: "Unknown source" }, { status: 404 });

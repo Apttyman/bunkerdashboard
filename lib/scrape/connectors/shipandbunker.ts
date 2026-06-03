@@ -131,3 +131,38 @@ export const shipandbunker: ScrapeConnector = {
     }
   },
 };
+
+// One-time diagnostic: returns exactly what the live scraper sees so the parser
+// can be tuned against the real HTML. Gated app-wide; personal use only.
+export async function debugShipAndBunker() {
+  const out: Record<string, unknown> = {};
+  try {
+    const raw = await politeFetch(URL_, 0);
+    const text = htmlToText(raw);
+    out.indexTextSample = text.slice(0, 3500);
+    const ri = raw.toLowerCase().indexOf("rotterdam");
+    out.rawAroundRotterdam = ri >= 0 ? raw.slice(Math.max(0, ri - 400), ri + 250) : "rotterdam not in raw html";
+    const links = portLinks(raw);
+    out.linksDiscovered = [...links];
+    // Also dump every /prices/ anchor (href + text) so we can see the real link format.
+    const anchors: { href: string; text: string }[] = [];
+    const re = /<a[^>]+href="(\/prices\/[^"#]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(raw)) && anchors.length < 40) {
+      anchors.push({ href: m[1], text: m[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() });
+    }
+    out.allPriceAnchors = anchors;
+    const first = [...links][0];
+    if (first) {
+      const [name, url] = first;
+      const praw = await politeFetch(url, 0);
+      const ptext = htmlToText(praw);
+      out.portPage = { name, url, parsed: parsePortPage(ptext), textSample: ptext.slice(0, 3500) };
+    } else {
+      out.portPage = "no port links discovered";
+    }
+  } catch (e) {
+    out.error = (e as Error).message;
+  }
+  return out;
+}
