@@ -1,8 +1,7 @@
 "use client";
 import useSWR from "swr";
-import { Metric, Card, SectionHeader, PageHeader, IntelCardView, LearnSnippet } from "@/components/ui";
-import { ScrapedBunkers } from "@/components/ScrapedBunkers";
-import { BUNKER_PORTS, FUEL_PRODUCTS } from "@/lib/content/markets";
+import { Metric, SectionHeader, PageHeader, IntelCardView, LearnSnippet } from "@/components/ui";
+import { PortProductMatrix } from "@/components/PortProductMatrix";
 import { BUNKER_INTEL } from "@/lib/content/intel";
 import { LEARN_TOPICS } from "@/lib/content/learn";
 import type { Provenance } from "@/lib/provenance";
@@ -24,10 +23,10 @@ export default function Fuels() {
         lead="VLSFO / HSFO / MGO across Singapore, Rotterdam, Fujairah, Houston, Panama, Gibraltar and Zhoushan. Absolute bunker assessments are commercial — shown as source-intelligence cards. Free distillate proxies (clearly labelled as proxies) give directional read."
       />
       <div className="space-y-5 p-5">
-        {/* Live scraped bunker prices (personal use; whole app is access-gated) */}
+        {/* Live scraped bunker prices by port — VLSFO/HSFO/MGO (personal use; gated) */}
         <section>
           <SectionHeader title="Live bunker prices by port" code="SCRAPED · PERSONAL" desc="VLSFO / HSFO / MGO scraped from Ship & Bunker for your private use. Verify against the source before trading. Not for redistribution." />
-          <ScrapedBunkers />
+          <PortProductMatrix />
         </section>
 
         {/* External desks & data sources — one click to the authoritative pages */}
@@ -54,40 +53,6 @@ export default function Fuels() {
               <div className="col-span-3 h-24 animate-pulse rounded-md border border-[var(--color-border)] bg-[var(--color-panel)]" />
             )}
           </div>
-        </section>
-
-        {/* Port × product matrix (commercial-gated) */}
-        <section>
-          <SectionHeader title="Port × product matrix" code="VLSFO · HSFO · MGO" desc="Absolute prices require a commercial feed (Tier-4 adapters ship ready). Until connected, each cell states the honest source requirement." />
-          <Card className="overflow-x-auto">
-            <table className="w-full text-[12px]">
-              <thead>
-                <tr className="border-b border-[var(--color-border)] text-left text-[10px] uppercase tracking-wide text-[var(--color-ink-faint)]">
-                  <th className="px-3 py-2">Port</th>
-                  <th className="px-3 py-2">Region</th>
-                  {FUEL_PRODUCTS.map((p) => (
-                    <th key={p.id} className="px-3 py-2">{p.name}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {BUNKER_PORTS.map((port) => (
-                  <tr key={port.id} className="border-b border-[var(--color-border-soft)] hover:bg-[var(--color-panel-2)]">
-                    <td className="px-3 py-2 font-medium text-[var(--color-ink)]">{port.name}</td>
-                    <td className="px-3 py-2 text-[var(--color-ink-faint)]">{port.region}</td>
-                    {FUEL_PRODUCTS.map((p) => (
-                      <td key={p.id} className="px-3 py-2 text-[var(--color-unavail)]">
-                        Commercial source required
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Card>
-          <p className="mt-1.5 text-[10px] text-[var(--color-ink-faint)]">
-            {BUNKER_PORTS.length} ports × {FUEL_PRODUCTS.length} grades · connect Argus/Platts (Tier-4) or license Ship & Bunker data to populate.
-          </p>
         </section>
 
         {/* Product explainers */}
