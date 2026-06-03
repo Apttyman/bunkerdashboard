@@ -7,7 +7,7 @@ import { BUNKER_INTEL } from "@/lib/content/intel";
 import { LEARN_TOPICS } from "@/lib/content/learn";
 import type { Provenance } from "@/lib/provenance";
 
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
+const fetcher = (u: string) => fetch(u).then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); });
 interface MarketsResp {
   products: { dieselGC: Provenance<number>; ulsdNYH: Provenance<number>; gasolineGC: Provenance<number> };
 }

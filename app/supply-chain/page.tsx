@@ -5,7 +5,7 @@ import { CHOKEPOINTS, type Chokepoint } from "@/lib/content/chokepoints";
 import type { Provenance } from "@/lib/provenance";
 import type { WeatherObs } from "@/lib/adapters/openweather";
 
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
+const fetcher = (u: string) => fetch(u).then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); });
 interface WeatherResp {
   results: { chokepoint: Chokepoint; weather: Provenance<WeatherObs> }[];
 }

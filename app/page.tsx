@@ -3,7 +3,7 @@ import useSWR from "swr";
 import { Metric, Sparkline, SpreadBar, Card, SectionHeader, PageHeader, ProvenanceBadge } from "@/components/ui";
 import type { Provenance, ProvenanceSeries } from "@/lib/provenance";
 
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
+const fetcher = (u: string) => fetch(u).then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); });
 
 interface MarketsResp {
   crude: { wti: Provenance<number>; brent: Provenance<number>; wtiSeries: ProvenanceSeries; brentSeries: ProvenanceSeries };

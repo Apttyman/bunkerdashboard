@@ -1,7 +1,7 @@
 "use client";
 import useSWR from "swr";
 
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
+const fetcher = (u: string) => fetch(u).then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); });
 
 interface Row { key: string; values: (number | null)[] }
 interface Result {

@@ -5,7 +5,7 @@ import { LearnSnippet } from "@/components/ui";
 import { LEARN_TOPICS } from "@/lib/content/learn";
 import type { Provenance, ProvenanceSeries } from "@/lib/provenance";
 
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
+const fetcher = (u: string) => fetch(u).then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); });
 interface MarketsResp {
   crude: { wti: Provenance<number>; brent: Provenance<number>; brentSeries: ProvenanceSeries };
   products: { dieselGC: Provenance<number>; ulsdNYH: Provenance<number>; gasolineGC: Provenance<number> };

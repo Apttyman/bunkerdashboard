@@ -2,7 +2,7 @@
 import useSWR from "swr";
 import { useEffect, useState } from "react";
 
-const fetcher = (u: string) => fetch(u).then((r) => r.json());
+const fetcher = (u: string) => fetch(u).then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); });
 
 export function TopBar() {
   const { data } = useSWR("/api/health", fetcher, { refreshInterval: 60_000 });
