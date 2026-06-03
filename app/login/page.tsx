@@ -1,9 +1,8 @@
 "use client";
 import { useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 function LoginForm() {
-  const router = useRouter();
   const params = useSearchParams();
   const [token, setToken] = useState("");
   const [err, setErr] = useState("");
@@ -13,18 +12,23 @@ function LoginForm() {
     e.preventDefault();
     setBusy(true);
     setErr("");
-    const r = await fetch("/api/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token }),
-    });
-    if (r.ok) {
-      router.replace(params.get("from") || "/");
-      router.refresh();
-    } else {
+    try {
+      const r = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+      if (r.ok) {
+        // Full-page navigation so the freshly-set cookie passes the gate cleanly
+        // (a client-side router push can race the cookie and loop back to /login).
+        window.location.assign(params.get("from") || "/");
+        return;
+      }
       setErr("Invalid access token");
-      setBusy(false);
+    } catch {
+      setErr("Network error — try again");
     }
+    setBusy(false);
   }
 
   return (
