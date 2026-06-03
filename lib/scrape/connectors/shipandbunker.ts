@@ -1,7 +1,7 @@
 // Ship & Bunker connector — VLSFO / HSFO (IFO380) / MGO by port.
 // Heuristic text parser with strict range validation. Fails honestly if the page
 // is JS-rendered or the layout changes (returns parse:"failed", never fake data).
-import { politeFetch, robotsState, htmlToText, parseNum, scrapingEnabled } from "../engine";
+import { getPageHtml, robotsState, htmlToText, scrapingEnabled } from "../engine";
 import type { ScrapeConnector, ScrapeResult, ScrapeRow } from "../types";
 
 const URL_ = "https://shipandbunker.com/prices";
@@ -47,14 +47,14 @@ export const shipandbunker: ScrapeConnector = {
     const robots = await robotsState(URL_);
     if (robots !== "allowed") return { ...base, robots, reason: `robots.txt: ${robots} — not scraping` };
     try {
-      const html = await politeFetch(URL_, 1800);
+      const { html, mode } = await getPageHtml(URL_, true, 1800);
       const rows = parse(htmlToText(html));
       if (rows.length === 0)
-        return { ...base, robots, parse: "failed", reason: "No parseable prices (page may be JS-rendered; parser needs tuning)" };
+        return { ...base, robots, parse: "failed", reason: `No parseable prices (${mode} fetch; parser may need tuning)` };
       return {
         ...base, robots, parse: "ok", available: true, asOf: new Date().toISOString(),
         table: { columns: ["VLSFO", "HSFO", "MGO"], unit: "$/mt", rows },
-        note: "SCRAPED — personal use only. Verify against shipandbunker.com.",
+        note: `SCRAPED (${mode}) — personal use only. Verify against shipandbunker.com.`,
       };
     } catch (e) {
       return { ...base, robots, parse: "failed", reason: `Fetch error: ${(e as Error).message}` };

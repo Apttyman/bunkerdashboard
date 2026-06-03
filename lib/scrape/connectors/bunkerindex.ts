@@ -1,6 +1,6 @@
 // Bunker Index connector — BIX regional indices / port prices.
 // Heuristic parser with validation; fails honestly.
-import { politeFetch, robotsState, htmlToText, scrapingEnabled } from "../engine";
+import { getPageHtml, robotsState, htmlToText, scrapingEnabled } from "../engine";
 import type { ScrapeConnector, ScrapeResult, ScrapeRow } from "../types";
 
 const URL_ = "https://www.bunkerindex.com/";
@@ -38,12 +38,13 @@ export const bunkerindex: ScrapeConnector = {
     const robots = await robotsState(URL_);
     if (robots !== "allowed") return { ...base, robots, reason: `robots.txt: ${robots} — not scraping` };
     try {
-      const rows = parse(htmlToText(await politeFetch(URL_, 1800)));
-      if (rows.length === 0) return { ...base, robots, parse: "failed", reason: "No parseable values (parser needs tuning)" };
+      const { html, mode } = await getPageHtml(URL_, true, 1800);
+      const rows = parse(htmlToText(html));
+      if (rows.length === 0) return { ...base, robots, parse: "failed", reason: `No parseable values (${mode} fetch; parser may need tuning)` };
       return {
         ...base, robots, parse: "ok", available: true, asOf: new Date().toISOString(),
         table: { columns: ["Value"], unit: "index / $/mt", rows },
-        note: "SCRAPED — personal use only.",
+        note: `SCRAPED (${mode}) — personal use only.`,
       };
     } catch (e) {
       return { ...base, robots, parse: "failed", reason: `Fetch error: ${(e as Error).message}` };

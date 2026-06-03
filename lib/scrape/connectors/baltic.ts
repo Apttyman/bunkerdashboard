@@ -1,7 +1,7 @@
 // Baltic Exchange connector — BDI / BDTI / BCTI headline indices.
 // NOTE: Baltic indices are licensed IP — highest legal risk. Personal use only;
 // never redistribute. Heuristic parser with validation; fails honestly.
-import { politeFetch, robotsState, htmlToText, scrapingEnabled } from "../engine";
+import { getPageHtml, robotsState, htmlToText, scrapingEnabled } from "../engine";
 import type { ScrapeConnector, ScrapeResult, ScrapeRow } from "../types";
 
 const URL_ = "https://www.balticexchange.com/en/index.html";
@@ -40,12 +40,13 @@ export const baltic: ScrapeConnector = {
     const robots = await robotsState(URL_);
     if (robots !== "allowed") return { ...base, robots, reason: `robots.txt: ${robots} — not scraping` };
     try {
-      const rows = parse(htmlToText(await politeFetch(URL_, 3600)));
-      if (rows.length === 0) return { ...base, robots, parse: "failed", reason: "No parseable indices (likely JS-rendered; parser needs tuning)" };
+      const { html, mode } = await getPageHtml(URL_, true, 3600);
+      const rows = parse(htmlToText(html));
+      if (rows.length === 0) return { ...base, robots, parse: "failed", reason: `No parseable indices (${mode} fetch; parser may need tuning)` };
       return {
         ...base, robots, parse: "ok", available: true, asOf: new Date().toISOString(),
         table: { columns: ["Index level"], unit: "points", rows },
-        note: "SCRAPED licensed data — personal use only. Do NOT redistribute.",
+        note: `SCRAPED (${mode}) licensed data — personal use only. Do NOT redistribute.`,
       };
     } catch (e) {
       return { ...base, robots, parse: "failed", reason: `Fetch error: ${(e as Error).message}` };

@@ -108,6 +108,30 @@ export function scrapingEnabled(): boolean {
   return process.env.SCRAPING_ENABLED === "true";
 }
 
+/** Fetch page HTML. When `useRender` is set, try a headless browser first (for
+ *  JS-rendered pages), then fall back to a plain static fetch. Returns the HTML
+ *  and which mode produced it. Never throws on render failure alone. */
+export async function getPageHtml(
+  url: string,
+  useRender: boolean,
+  cacheSeconds = 1800,
+): Promise<{ html: string; mode: "render" | "static" }> {
+  if (useRender) {
+    try {
+      const { renderPage, renderAvailable } = await import("./render");
+      if (renderAvailable()) {
+        const host = new URL(url).host;
+        await rateLimit(host);
+        const html = await renderPage(url, { settleMs: 1500 });
+        if (html && html.length > 500) return { html, mode: "render" };
+      }
+    } catch (e) {
+      console.warn(`[scrape] render failed for ${url}, falling back to static:`, (e as Error).message);
+    }
+  }
+  return { html: await politeFetch(url, cacheSeconds), mode: "static" };
+}
+
 /** Collapse HTML to newline-separated visible text (rows preserved), scripts and
  *  styles removed. Heuristic basis for the text parsers. */
 export function htmlToText(html: string): string {

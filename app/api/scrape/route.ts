@@ -3,6 +3,9 @@ import { runScrape, accessOk, scrapeConfigured, connectorStatuses, CONNECTORS } 
 import { scrapingEnabled } from "@/lib/scrape/engine";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+// Headless-browser renders can take time; allow up to 60s on the scrape function.
+export const maxDuration = 60;
 
 function token(req: Request): string | null {
   return (
